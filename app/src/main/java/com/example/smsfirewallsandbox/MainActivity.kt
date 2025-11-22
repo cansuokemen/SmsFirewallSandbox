@@ -1,10 +1,10 @@
 package com.example.smsfirewallsandbox
 
 import android.Manifest
-import android.content.Intent
+import android.app.role.RoleManager
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.provider.Telephony
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -12,7 +12,10 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private val SMS_PERMISSION_REQUEST_CODE = 100
+    companion object {
+        private const val SMS_PERMISSION_REQUEST_CODE = 100
+        private const val REQUEST_ROLE_SMS = 200
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,14 +28,17 @@ class MainActivity : AppCompatActivity() {
         checkSmsPermissions()
     }
 
-
     private fun requestDefaultSmsRole() {
-        val currentDefault = Telephony.Sms.getDefaultSmsPackage(this)
-        if (currentDefault != packageName) {
-            val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT).apply {
-                putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
+        // Android 10+ için RoleManager ile default SMS rolünü iste
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            val isAvailable = roleManager.isRoleAvailable(RoleManager.ROLE_SMS)
+            val isHeld = roleManager.isRoleHeld(RoleManager.ROLE_SMS)
+
+            if (isAvailable && !isHeld) {
+                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
+                startActivityForResult(intent, REQUEST_ROLE_SMS)
             }
-            startActivity(intent)
         }
     }
 
@@ -69,7 +75,9 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == SMS_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            if (grantResults.isNotEmpty() &&
+                grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            ) {
                 Toast.makeText(this, "SMS izinleri verildi", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "SMS izinleri reddedildi", Toast.LENGTH_SHORT).show()
