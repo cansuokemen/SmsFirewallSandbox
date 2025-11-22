@@ -1,8 +1,10 @@
-package com.example.smsfirewallsandbox   // En üstteki package satırı sende neyse onu KORU
+package com.example.smsfirewallsandbox
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Telephony
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -16,7 +18,22 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Varsayılan SMS uygulaması olmayı iste
+        requestDefaultSmsRole()
+
+        // SMS izinlerini kontrol et / iste
         checkSmsPermissions()
+    }
+
+
+    private fun requestDefaultSmsRole() {
+        val currentDefault = Telephony.Sms.getDefaultSmsPackage(this)
+        if (currentDefault != packageName) {
+            val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT).apply {
+                putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
+            }
+            startActivity(intent)
+        }
     }
 
     private fun checkSmsPermissions() {
