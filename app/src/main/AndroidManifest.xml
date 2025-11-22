@@ -45,10 +45,11 @@
             android:name=".SmsReceiver"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter>
+            <intent-filter android:priority="999">
                 <action android:name="android.provider.Telephony.SMS_DELIVER" />
             </intent-filter>
         </receiver>
+
 
         <!-- MMS için stub -->
         <receiver
@@ -61,7 +62,18 @@
             </intent-filter>
         </receiver>
 
-        <!-- Arama ekranından “mesaj ile cevapla” için zorunlu servis -->
+        <service
+            android:name=".HeadlessSmsSendService"
+            android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".RespondViaMessageService"
             android:exported="true"

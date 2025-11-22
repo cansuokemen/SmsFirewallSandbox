@@ -3,45 +3,59 @@ package com.example.smsfirewallsandbox
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.content.ContentValues
+import android.net.Uri
 import android.provider.Telephony
-import android.telephony.SmsMessage
 import android.util.Log
 import android.widget.Toast
 
 class SmsReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
+        if (context == null || intent == null) return
 
-        val action = intent?.action
+        val action = intent.action
+        if (action != Telephony.Sms.Intents.SMS_DELIVER_ACTION) {
+            return
+        }
 
-        if (action == Telephony.Sms.Intents.SMS_DELIVER_ACTION) {
+        val smsMessages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
 
-            val bundle = intent.extras
-            val pdus = bundle?.get("pdus") as? Array<*>
+        for (sms in smsMessages) {
+            val sender = sms.displayOriginatingAddress
+            val message = sms.displayMessageBody
 
-            pdus?.forEach { pdu ->
-                val format = bundle.getString("format")
+            Log.d("SMS_FIREWALL", "Gönderen: $sender")
+            Log.d("SMS_FIREWALL", "Mesaj: $message")
 
-                val sms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    SmsMessage.createFromPdu(pdu as ByteArray, format)
-                } else {
-                    @Suppress("DEPRECATION")
-                    SmsMessage.createFromPdu(pdu as ByteArray)
-                }
+            Toast.makeText(
+                context,
+                "SMS Geldi: $message",
+                Toast.LENGTH_LONG
+            ).show()
 
-                val sender = sms.displayOriginatingAddress
-                val message = sms.displayMessageBody
+            storeSmsToInbox(context, sender, message)
+        }
 
-                Log.d("SMS_FIREWALL", "Gönderen: $sender")
-                Log.d("SMS_FIREWALL", "Mesaj: $message")
+        abortBroadcast()
+    }
 
-                Toast.makeText(
-                    context,
-                    "SMS Geldi: $message",
-                    Toast.LENGTH_LONG
-                ).show()
+    private fun storeSmsToInbox(context: Context, sender: String, body: String) {
+        try {
+            val values = ContentValues().apply {
+                put("address", sender)
+                put("body", body)
+                put("read", 0)
+                put("date", System.currentTimeMillis())
+                put("type", 1)   // 1 = gelen
             }
+
+            val uri = Uri.parse("content://sms/inbox")
+            val result = context.contentResolver.insert(uri, values)
+
+            Log.d("SMS_FIREWALL", "SMS provider’a yazıldı: $result")
+        } catch (e: Exception) {
+            Log.e("SMS_FIREWALL", "SMS’i provider’a yazarken hata: ${e.message}", e)
         }
     }
 }
